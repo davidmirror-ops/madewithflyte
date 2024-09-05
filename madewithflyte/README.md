@@ -1,6 +1,6 @@
-# madewithflyte
+# Made with Flyte
 
-A template for the recommended layout of a Flyte enabled repository for code written in python using [flytekit](https://docs.flyte.org/en/latest/api/flytekit/docs_index.html).
+As a learning exercise, this repo captures the effort to play a rendition of the [Made with ML](https://madewithml.com/) tutorial, using Flyte tasks, workflows and other constructs.
 
 ## Usage
 
