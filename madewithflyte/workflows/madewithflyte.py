@@ -29,7 +29,7 @@ def split_dataset(df:pd.DataFrame)->Tuple[pd.Series,pd.Series]:
     train_df, val_df = train_test_split(df, stratify=df.tag,test_size=test_size, random_state=1234)
     train_value_counts=train_df.tag.value_counts()
     validation_value_counts=val_df.tag.value_counts()*int((1-test_size)/test_size)
-    return train_value_counts, validation_value_counts
+    return train_df, val_df
 
 nltk.download("stopwords")
 STOPWORDS = stopwords.words("english")
@@ -61,12 +61,22 @@ def preprocessing(df:pd.DataFrame)->pd.DataFrame:
     df = df[["text", "tag"]]  # rearrange cols
     return df
 
+@task(container_image=sklearn_image_spec)
+def encoding(df:pd.DataFrame,train_df:pd.Series)->pd.DataFrame:
+    # Label to index
+    tags = train_df.tag.unique().tolist()
+    num_classes = len(tags)
+    class_to_index = {tag: i for i, tag in enumerate(tags)}
+    # Encode labels
+    df["tag"] = df["tag"].map(class_to_index)
+    return df
 
 @workflow
-def complete_workflow()->Tuple[pd.Series, pd.Series, pd.DataFrame]:
+def complete_workflow()->pd.DataFrame:
     ingest_data= data_ingestion(DATASET_LOC=DATASET_LOC)
-    train_value_counts, validation_value_counts = split_dataset(df=ingest_data)
+    train_df, val_df = split_dataset(df=ingest_data)
     cleaned_data = preprocessing(df=ingest_data)
-    return train_value_counts, validation_value_counts, cleaned_data
+    encoded_data=encoding(df=ingest_data, train_df=train_df)
+    return encoded_data
 
 
