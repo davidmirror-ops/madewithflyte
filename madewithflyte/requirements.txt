@@ -1,3 +1,8 @@
 flytekit>=1.5.0
 scikit-learn
-flytekitplugins-envd
+pandas
+pyarrow
+fastparquet
+nltk
+numpy
+transformers

@@ -10,7 +10,7 @@ import re
 
 sklearn_image_spec = ImageSpec(
     base_image="ghcr.io/flyteorg/flytekit:py3.9-latest",
-    packages=["scikit-learn","pandas","pyarrow","fastparquet","flytekit","nltk"],
+    requirements="../requirements.txt",
     registry="ghcr.io/davidmirror-ops/images",
     platform="linux/arm64", 
 )
@@ -70,6 +70,10 @@ def encoding(df:pd.DataFrame,train_df:pd.Series)->pd.DataFrame:
     # Encode labels
     df["tag"] = df["tag"].map(class_to_index)
     return df
+
+@task(container_image=sklearn_image_spec)
+def decode(indices:int, index_to_class:dict)->dict:
+    return [index_to_class[index] for index in indices]
 
 @workflow
 def complete_workflow()->pd.DataFrame:
