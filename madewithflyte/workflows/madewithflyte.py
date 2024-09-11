@@ -7,6 +7,8 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 import re
+import numpy as np
+from transformers import BertTokenizer
 
 sklearn_image_spec = ImageSpec(
     base_image="ghcr.io/flyteorg/flytekit:py3.9-latest",
@@ -24,7 +26,7 @@ def data_ingestion(DATASET_LOC: str) -> pd.DataFrame:
     return df
 
 @task(container_image=sklearn_image_spec)
-def split_dataset(df:pd.DataFrame)->Tuple[pd.Series,pd.Series]:
+def split_dataset(df:pd.DataFrame)->Tuple[pd.DataFrame,pd.DataFrame]:
     test_size=0.2
     train_df, val_df = train_test_split(df, stratify=df.tag,test_size=test_size, random_state=1234)
     train_value_counts=train_df.tag.value_counts()
@@ -51,7 +53,7 @@ def clean_text(text, stopwords=STOPWORDS):
     return text
 
 @task(container_image=sklearn_image_spec)
-def preprocessing(df:pd.DataFrame)->pd.DataFrame:
+def clean_data(df:pd.DataFrame)->pd.DataFrame:
     df["text"] = df.title + " " + df.description
     original_df = df.copy()
     df.text = df.text.apply(clean_text)
@@ -62,25 +64,35 @@ def preprocessing(df:pd.DataFrame)->pd.DataFrame:
     return df
 
 @task(container_image=sklearn_image_spec)
-def encoding(df:pd.DataFrame,train_df:pd.Series)->pd.DataFrame:
+def encoding(df:pd.DataFrame,train_df:pd.DataFrame)->pd.Series:
     # Label to index
     tags = train_df.tag.unique().tolist()
     num_classes = len(tags)
     class_to_index = {tag: i for i, tag in enumerate(tags)}
     # Encode labels
     df["tag"] = df["tag"].map(class_to_index)
-    return df
+    return df["tag"]
 
-@task(container_image=sklearn_image_spec)
 def decode(indices:int, index_to_class:dict)->dict:
     return [index_to_class[index] for index in indices]
 
+@task(container_image=sklearn_image_spec)
+def tokenize(batch:pd.DataFrame)->dict:
+    tokenizer = BertTokenizer.from_pretrained("allenai/scibert_scivocab_uncased", return_dict=False)
+    encoded_inputs = tokenizer(batch["text"].tolist(), return_tensors="np", padding="longest")
+    return {
+        "ids": encoded_inputs["input_ids"].tolist(),  # Convert numpy array to list
+        "masks": encoded_inputs["attention_mask"].tolist(),  # Convert numpy array to list
+        "targets": batch["tag"].tolist()  # Convert pandas Series to list
+    }
+
 @workflow
-def complete_workflow()->pd.DataFrame:
+def complete_workflow()->dict:
     ingest_data= data_ingestion(DATASET_LOC=DATASET_LOC)
     train_df, val_df = split_dataset(df=ingest_data)
-    cleaned_data = preprocessing(df=ingest_data)
+    cleaned_data = clean_data(df=ingest_data)
     encoded_data=encoding(df=ingest_data, train_df=train_df)
-    return encoded_data
+    preprocessed_data=tokenize(batch=cleaned_data)
+    return preprocessed_data
 
 

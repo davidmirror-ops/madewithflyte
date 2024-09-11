@@ -6,3 +6,4 @@ fastparquet
 nltk
 numpy
 transformers
+flytekitplugins-ray
