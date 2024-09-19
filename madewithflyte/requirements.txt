@@ -7,3 +7,8 @@ nltk
 numpy
 transformers
 flytekitplugins-ray
+openai
+matplotlib
+seaborn
+tqdm
+python-dotenv
